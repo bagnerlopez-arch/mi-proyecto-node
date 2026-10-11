@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE producto
+    DROP COLUMN IF EXISTS sku,
+    DROP COLUMN IF EXISTS peso_lbs;
+
+COMMIT;
