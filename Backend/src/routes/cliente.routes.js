@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
     obtenerUsuarios,
     crearUsuario,
+    autenticarUsuario,
     editarUsuario,
     eliminarUsuario,
     obtenerCategorias,
@@ -12,6 +13,7 @@ import {
     crearPedido,
     crearSolicitudBodega,
     obtenerSolicitudesBodega,
+    actualizarAceptacionSolicitudBodega,
     actualizarEstadoPedido,
     editarProducto,
     eliminarProducto,
@@ -35,6 +37,11 @@ router.get(
 router.post(
     '/usuarios',
     crearUsuario
+);
+
+router.post(
+    '/login',
+    autenticarUsuario
 );
 
 
@@ -97,6 +104,11 @@ router.post(
 router.get(
     '/solicitudes-bodega',
     obtenerSolicitudesBodega
+);
+
+router.patch(
+    '/solicitudes-bodega/:numero/aceptacion',
+    actualizarAceptacionSolicitudBodega
 );
 
 

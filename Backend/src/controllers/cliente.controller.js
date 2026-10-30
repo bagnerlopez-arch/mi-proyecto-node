@@ -74,6 +74,12 @@ export async function crearUsuario(req, res) {
         });
     }
 
+    if (typeof rol !== 'string' || !['administrador', 'bodeguero', 'vendedor'].includes(rol.trim().toLowerCase())) {
+        return res.status(400).json({
+            error: 'El rol debe ser Administrador, Bodeguero o Vendedor.'
+        });
+    }
+
     try {
 
         const resultado = await pool.query(`
@@ -132,6 +138,68 @@ export async function crearUsuario(req, res) {
 
 
 // ======================================================
+// INICIAR SESIÓN
+// ======================================================
+
+export async function autenticarUsuario(req, res) {
+
+    const { usuario, password } = req.body;
+
+    if (!usuario?.trim() || !password) {
+        return res.status(400).json({
+            error: 'Ingresa tu usuario y contraseña.'
+        });
+    }
+
+    try {
+
+        const resultado = await pool.query(`
+            SELECT
+                u.usuario_id AS id,
+                u.usuario,
+                u.nombre,
+                u.email AS correo,
+                UPPER(r.nombre) AS rol
+            FROM usuario u
+            INNER JOIN rol r
+                ON r.rol_id = u.rol_id
+            WHERE LOWER(BTRIM(u.usuario)) = LOWER(BTRIM($1))
+              AND u.estado::text = 'ACTIVO'
+              AND u.password_hash = crypt($2, u.password_hash)
+        `, [usuario, password]);
+
+        if (resultado.rowCount === 0) {
+            return res.status(401).json({
+                error: 'Usuario o contraseña incorrectos.'
+            });
+        }
+
+        const usuarioAutenticado = resultado.rows[0];
+
+        await pool.query(`
+            UPDATE usuario
+            SET ultimo_acceso = CURRENT_TIMESTAMP
+            WHERE usuario_id = $1
+        `, [usuarioAutenticado.id]);
+
+        res.json({
+            usuario: usuarioAutenticado
+        });
+
+    } catch (error) {
+
+        console.error('Error al iniciar sesión:', error);
+
+        res.status(500).json({
+            error: 'No fue posible iniciar sesión.'
+        });
+
+    }
+
+}
+
+
+// ======================================================
 // EDITAR USUARIO
 // ======================================================
 
@@ -150,6 +218,12 @@ export async function editarUsuario(req, res) {
     if (!usuario || !nombre || !correo || !rol || !estado) {
         return res.status(400).json({
             error: 'Completa todos los campos obligatorios.'
+        });
+    }
+
+    if (typeof rol !== 'string' || !['administrador', 'bodeguero', 'vendedor'].includes(rol.trim().toLowerCase())) {
+        return res.status(400).json({
+            error: 'El rol debe ser Administrador, Bodeguero o Vendedor.'
         });
     }
 
@@ -991,6 +1065,8 @@ export async function crearPedido(req, res) {
         !pago.banco?.trim()
         || !pago.referencia?.trim()
         || pago.monto === undefined
+        || !Number.isFinite(Number(pago.monto))
+        || Number(pago.monto) < 0
         || !pago.fecha
         || !pago.comprobante
     )) {
@@ -1087,15 +1163,6 @@ export async function crearPedido(req, res) {
             ? Number(process.env.COSTO_ENVIO || 35)
             : 0;
         const total = subtotal + costoEnvio;
-
-        if (
-            pago.tipo === 'TRANSFERENCIA'
-            && Number(pago.monto) !== total
-        ) {
-            throw new Error(
-                'El monto transferido debe coincidir con el total del pedido.'
-            );
-        }
 
         const validacion = await conexion.query(`
             WITH reloj AS (
@@ -1715,7 +1782,16 @@ export async function crearSolicitudBodega(req, res) {
 
     try {
 
-        const ids = productos.map(item => Number(item.producto_id));
+        const ids = [...new Set(productos.map(item => Number(item.producto_id)))];
+        const cantidadesSolicitadas = new Map();
+        for (const item of productos) {
+            const productoId = Number(item.producto_id);
+            cantidadesSolicitadas.set(
+                productoId,
+                (cantidadesSolicitadas.get(productoId) || 0) + Number(item.cantidad)
+            );
+        }
+
         const disponibles = await pool.query(`
             SELECT p.producto_id, p.nombre,
                 COALESCE(SUM(iu.stock_actual - iu.stock_reservado), 0) AS stock_bodega
@@ -1733,9 +1809,9 @@ export async function crearSolicitudBodega(req, res) {
             disponibles.rows.map(item => [Number(item.producto_id), item])
         );
 
-        for (const item of productos) {
-            const producto = productosPorId.get(Number(item.producto_id));
-            if (!producto || Number(producto.stock_bodega) < Number(item.cantidad)) {
+        for (const [productoId, cantidad] of cantidadesSolicitadas) {
+            const producto = productosPorId.get(productoId);
+            if (!producto || Number(producto.stock_bodega) < cantidad) {
                 return res.status(409).json({
                     error: `No hay stock suficiente en bodega para ${producto?.nombre || 'uno de los productos'}.`
                 });
@@ -1759,7 +1835,7 @@ export async function crearSolicitudBodega(req, res) {
             VALUES ($1, $2::jsonb, $3, $4, $5, $6)
             RETURNING solicitud_id, numero_solicitud, productos,
                 ubicacion_destino, prioridad, estado, solicitante,
-                notas, creado_en
+                notas, enviado, aceptado, creado_en
         `, [
             numero.rows[0].numero,
             JSON.stringify(productosConNombre),
@@ -1789,7 +1865,7 @@ export async function obtenerSolicitudesBodega(req, res) {
         const resultado = await pool.query(`
             SELECT solicitud_id, numero_solicitud, productos,
                 ubicacion_destino, prioridad, estado, solicitante,
-                notas, creado_en
+                notas, enviado, aceptado, creado_en
             FROM solicitud_bodega
             ORDER BY creado_en DESC
         `);
@@ -1800,6 +1876,48 @@ export async function obtenerSolicitudesBodega(req, res) {
     }
 
 }
+
+
+export async function actualizarAceptacionSolicitudBodega(req, res) {
+
+    const { numero } = req.params;
+    const { aceptado } = req.body;
+
+    if (typeof aceptado !== 'boolean') {
+        return res.status(400).json({
+            error: 'Indica si el ticket fue aceptado.'
+        });
+    }
+
+    try {
+        const resultado = await pool.query(`
+            UPDATE solicitud_bodega
+            SET aceptado = $2,
+                estado = CASE
+                    WHEN $2 THEN 'En preparación'
+                    WHEN estado = 'En preparación' THEN 'Pendiente'
+                    ELSE estado
+                END
+            WHERE numero_solicitud = $1
+            RETURNING solicitud_id, numero_solicitud, enviado, aceptado, estado
+        `, [numero, aceptado]);
+
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({
+                error: 'No se encontró el ticket de solicitud.'
+            });
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (error) {
+        console.error('Error al actualizar aceptación de solicitud:', error);
+        res.status(500).json({
+            error: 'No fue posible actualizar la aceptación del ticket.'
+        });
+    }
+
+}
+
 // ======================================================
 // REGISTRAR VENTA DE MOSTRADOR
 // ======================================================

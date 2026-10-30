@@ -1,42 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
-const ticketsIniciales = [
-    {
-        id: 'SOL-0001',
-        productos: [{ producto: 'Vasos Plásticos #10', cantidad: 200 }],
-        ubicacion: 'Negocio Local',
-        prioridad: 'Alta',
-        estado: 'Pendiente',
-        solicitante: 'Administrador',
-        fecha: '22/09/2026',
-        notas: 'Reponer el estante de bebidas.'
-    },
-    {
-        id: 'SOL-0002',
-        productos: [{ producto: 'Bolsas Negras 24x32', cantidad: 100 }],
-        ubicacion: 'Negocio Local',
-        prioridad: 'Media',
-        estado: 'En preparación',
-        solicitante: 'Administrador',
-        fecha: '21/09/2026',
-        notas: 'Solicitadas para despacho de esta semana.'
-    }
-];
-
-function obtenerTickets() {
-    try {
-        const guardados = localStorage.getItem('ticketsSolicitudes');
-        return guardados ? JSON.parse(guardados) : ticketsIniciales;
-    } catch {
-        return ticketsIniciales;
-    }
-}
-
 function Ticket() {
-    const [tickets, setTickets] = useState(obtenerTickets);
+    const [tickets, setTickets] = useState([]);
     const [filtro, setFiltro] = useState('Todas');
     const [busqueda, setBusqueda] = useState('');
     const [error, setError] = useState('');
+    const [mensaje, setMensaje] = useState('');
+    const [actualizandoAceptacion, setActualizandoAceptacion] = useState('');
 
     useEffect(() => {
         let activo = true;
@@ -55,12 +25,13 @@ function Ticket() {
                     estado: solicitud.estado,
                     solicitante: solicitud.solicitante,
                     fecha: new Date(solicitud.creado_en).toLocaleDateString('es-GT'),
-                    notas: solicitud.notas || 'Sin observaciones.'
+                    notas: solicitud.notas || 'Sin observaciones.',
+                    enviado: solicitud.enviado,
+                    aceptado: solicitud.aceptado
                 })));
                 setError('');
             } catch (errorCarga) {
                 if (activo) {
-                    setTickets(obtenerTickets());
                     setError(errorCarga.message || 'No se pudieron cargar los tickets de bodega.');
                 }
             }
@@ -73,6 +44,40 @@ function Ticket() {
             window.clearInterval(intervalo);
         };
     }, []);
+
+    async function cambiarAceptacion(ticket, aceptado) {
+        setActualizandoAceptacion(ticket.id);
+        setError('');
+
+        try {
+            const respuesta = await fetch(
+                `/api/cliente/solicitudes-bodega/${encodeURIComponent(ticket.id)}/aceptacion`,
+                {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aceptado })
+                }
+            );
+            const datos = await respuesta.json();
+            if (!respuesta.ok) {
+                throw new Error(datos.error || 'No se pudo actualizar el ticket.');
+            }
+
+            setTickets(anterior => anterior.map(item => (
+                item.id === ticket.id
+                    ? { ...item, aceptado: datos.aceptado, estado: datos.estado }
+                    : item
+            )));
+            setMensaje(datos.aceptado
+                ? `Ticket ${ticket.id} aceptado. En proceso de preparación de los productos.`
+                : `Se quitó la aceptación del ticket ${ticket.id}.`);
+        } catch (errorActualizacion) {
+            setError(errorActualizacion.message || 'No se pudo actualizar el ticket.');
+        } finally {
+            setActualizandoAceptacion('');
+        }
+    }
+
     const ticketsVisibles = tickets.filter(ticket => {
         const productos = ticket.productos || [
             { producto: ticket.producto, cantidad: ticket.cantidad }
@@ -101,6 +106,10 @@ function Ticket() {
                 .ticket-products { display: grid; gap: 4px; margin: 11px 0; color: #52657d; font-size: 10px; }
                 .ticket-card-notes { margin: 10px 0; }
                 .ticket-card-meta { justify-content: flex-start; flex-wrap: wrap; }
+                .ticket-checks { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+                .ticket-check { display: inline-flex; align-items: center; gap: 6px; color: #52657d; font-size: 10px; }
+                .ticket-check input { accent-color: #16803c; }
+                .ticket-message { margin: 0 15px; padding: 10px 12px; border: 1px solid #a8dfbf; border-radius: 6px; color: #125c36; background: #e4f6ed; font-size: 11px; font-weight: 700; }
                 .ticket-badge { padding: 4px 7px; border-radius: 10px; font-size: 9px; font-weight: 700; }
                 .ticket-badge.pendiente { color: #996400; background: #fff1d5; }
                 .ticket-badge.en-preparación { color: #175eaa; background: #e0efff; }
@@ -135,6 +144,7 @@ function Ticket() {
                 </div>
 
                 {error && <div className="ticket-empty" role="status">{error}</div>}
+                {mensaje && <div className="ticket-message" role="status" aria-live="polite">{mensaje}</div>}
 
                 <div className="ticket-list">
                     {ticketsVisibles.length === 0 && (
@@ -168,6 +178,21 @@ function Ticket() {
                                         {ticket.prioridad === 'Urgente' ? 'URGENTE' : `Prioridad ${ticket.prioridad}`}
                                     </span>
                                     <span className={`ticket-badge ${claseEstado}`}>{ticket.estado}</span>
+                                </div>
+                                <div className="ticket-checks">
+                                    <label className="ticket-check">
+                                        <input type="checkbox" checked={Boolean(ticket.enviado)} disabled readOnly />
+                                        Ticket enviado
+                                    </label>
+                                    <label className="ticket-check">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(ticket.aceptado)}
+                                            disabled={actualizandoAceptacion === ticket.id}
+                                            onChange={evento => cambiarAceptacion(ticket, evento.target.checked)}
+                                        />
+                                        Ticket aceptado
+                                    </label>
                                 </div>
                             </article>
                         );

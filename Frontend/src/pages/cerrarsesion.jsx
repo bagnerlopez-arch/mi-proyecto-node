@@ -6,7 +6,9 @@ export default function CerrarSesion() {
 
     useEffect(() => {
         localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
         sessionStorage.removeItem('token');
+        sessionStorage.removeItem('usuario');
         navigate('/login', { replace: true });
     }, [navigate]);
 

@@ -48,8 +48,22 @@ function RealizarVentas() {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState('');
     const [mensaje, setMensaje] = useState('');
+    const [notificacionVenta, setNotificacionVenta] = useState('');
+    const [notificacionSolicitud, setNotificacionSolicitud] = useState('');
     const [dineroRecibido, setDineroRecibido] = useState('');
     const [ventaEnProceso, setVentaEnProceso] = useState(false);
+    const [solicitudEnProceso, setSolicitudEnProceso] = useState(false);
+
+    useEffect(() => {
+        if (!notificacionVenta && !notificacionSolicitud) return undefined;
+
+        const temporizador = window.setTimeout(() => {
+            setNotificacionVenta('');
+            setNotificacionSolicitud('');
+        }, 6000);
+
+        return () => window.clearTimeout(temporizador);
+    }, [notificacionVenta, notificacionSolicitud]);
 
     useEffect(() => {
         const controlador = new AbortController();
@@ -174,6 +188,9 @@ function RealizarVentas() {
             return;
         }
 
+        setSolicitudEnProceso(true);
+        setNotificacionSolicitud('');
+        setMensaje('');
         try {
             const respuesta = await fetch('/api/cliente/solicitudes-bodega', {
                 method: 'POST',
@@ -195,13 +212,18 @@ function RealizarVentas() {
             }
             setSolicitudesBodega([]);
             setPrioridadSolicitud('Media');
-            setMensaje(`${resultado.numero_solicitud} enviado correctamente a bodega.`);
+            setNotificacionSolicitud(
+                `¡Solicitud enviada exitosamente! Ticket ${resultado.numero_solicitud} enviado a Bodega.`
+            );
         } catch (errorSolicitud) {
             setMensaje(errorSolicitud.message);
+        } finally {
+            setSolicitudEnProceso(false);
         }
     }
 
     async function realizarVenta() {
+        setNotificacionVenta('');
         if (carrito.length === 0) {
             setMensaje('Agrega al menos un producto al carrito.');
             return;
@@ -243,7 +265,10 @@ function RealizarVentas() {
 
             setCarrito([]);
             setDineroRecibido('');
-            setMensaje(`Venta #${resultado.venta_id} realizada. Total: Q ${Number(resultado.total).toFixed(2)}. Cambio: Q ${Number(resultado.cambio).toFixed(2)}.`);
+            setMensaje('');
+            setNotificacionVenta(
+                `¡Venta exitosa! Venta #${resultado.venta_id}. Total: Q ${Number(resultado.total).toFixed(2)}. Cambio: Q ${Number(resultado.cambio).toFixed(2)}.`
+            );
 
             try {
                 const respuestaProductos = await fetch(API_PRODUCTOS);
@@ -306,12 +331,25 @@ function RealizarVentas() {
                 .venta-change.pending { color: #b13e3e; }
                 .venta-finish { width: calc(100% - 28px); margin: 0 14px 14px; padding: 11px; border: 0; border-radius: 5px; color: white; background: #188b52; cursor: pointer; font-size: 11px; font-weight: 700; }
                 .venta-message { margin: 0 14px 14px; padding: 9px; border-radius: 5px; color: #176c49; background: #e4f6ed; font-size: 10px; }
+                .venta-success-notification { position: fixed; top: 78px; right: 24px; z-index: 200; max-width: min(460px, calc(100vw - 32px)); padding: 14px 18px; border: 1px solid #a8dfbf; border-radius: 8px; color: #125c36; background: #e4f6ed; box-shadow: 0 8px 24px rgba(20, 72, 43, .2); font-size: 13px; font-weight: 700; }
+                .solicitud-success-notification { position: fixed; top: 78px; right: 24px; z-index: 200; max-width: min(460px, calc(100vw - 32px)); padding: 14px 18px; border: 1px solid #a8dfbf; border-radius: 8px; color: #125c36; background: #e4f6ed; box-shadow: 0 8px 24px rgba(20, 72, 43, .2); font-size: 13px; font-weight: 700; }
                 .venta-empty { padding: 25px 14px; color: #718097; text-align: center; font-size: 11px; }
                 .venta-section-title { margin: 14px 14px 8px; color: #52657d; font-size: 10px; font-weight: 800; }
                 .venta-priority { width: calc(100% - 28px); margin: 0 14px 10px; padding: 8px; border: 1px solid #d7e0eb; border-radius: 5px; color: #233e63; background: white; font-size: 10px; }
                 .venta-ticket-button { width: calc(100% - 28px); margin: 0 14px 14px; padding: 11px; border: 0; border-radius: 5px; color: white; background: #c47720; cursor: pointer; font-size: 11px; font-weight: 700; }
                 @media (max-width: 850px) { .ventas-layout { grid-template-columns: 1fr; } .ventas-cart { position: static; } }
             `}</style>
+
+            {notificacionVenta && (
+                <div className="venta-success-notification" role="status" aria-live="polite">
+                    {notificacionVenta}
+                </div>
+            )}
+            {notificacionSolicitud && (
+                <div className="solicitud-success-notification" role="status" aria-live="polite">
+                    {notificacionSolicitud}
+                </div>
+            )}
 
             <div className="ventas-heading">
                 <div>
@@ -398,7 +436,14 @@ function RealizarVentas() {
                             </div>
                         ))}
                     </div>
-                    <button className="venta-ticket-button" type="button" onClick={crearTicketSolicitud}>Enviar solicitud como ticket</button>
+                    <button
+                        className="venta-ticket-button"
+                        type="button"
+                        onClick={crearTicketSolicitud}
+                        disabled={solicitudEnProceso || solicitudesBodega.length === 0}
+                    >
+                        {solicitudEnProceso ? 'Enviando solicitud...' : 'Enviar solicitud como ticket'}
+                    </button>
                     <div className="venta-cart-total"><span>Total</span><span>Q {total.toFixed(2)}</span></div>
                     <label className="venta-payment" htmlFor="dinero-recibido">
                         Dinero recibido del cliente

@@ -124,8 +124,14 @@ async function asegurarEsquemaPedidos() {
             estado varchar(30) NOT NULL DEFAULT 'Pendiente',
             solicitante varchar(160) NOT NULL,
             notas text,
+            enviado boolean NOT NULL DEFAULT true,
+            aceptado boolean NOT NULL DEFAULT false,
             creado_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+
+        ALTER TABLE solicitud_bodega
+            ADD COLUMN IF NOT EXISTS enviado boolean NOT NULL DEFAULT true,
+            ADD COLUMN IF NOT EXISTS aceptado boolean NOT NULL DEFAULT false;
 
         ALTER TABLE IF EXISTS detalle_venta
             ADD COLUMN IF NOT EXISTS vendedor varchar(160);

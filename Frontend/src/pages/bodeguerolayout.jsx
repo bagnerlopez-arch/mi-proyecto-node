@@ -57,7 +57,10 @@ function BodegueroLayout() {
 			<div className="bodeguero-content">
 				<header className="bodeguero-topbar">
 					<strong>Portal del Bodeguero</strong>
-					<span>📦 Bodeguero</span>
+					<div className="bodeguero-topbar-actions">
+						<span>📦 Bodeguero</span>
+						<Link className="bodeguero-logout" to="/cerrar-sesion">Cerrar sesión</Link>
+					</div>
 				</header>
 				<main className="bodeguero-main">
 					<Outlet />
@@ -88,8 +91,11 @@ function BodegueroLayout() {
 				.bodeguero-footer small { margin-top: 7px; color: #cfe0f7; font-size: 9px; }
 				.bodeguero-content { width: calc(100% - 250px); min-height: 100vh; margin-left: 250px; }
 				.bodeguero-topbar { height: 65px; position: sticky; top: 0; z-index: 90; display: flex; align-items: center; justify-content: space-between; padding: 0 23px; border-bottom: 1px solid #dbe4ef; background: rgba(255,255,255,.97); color: #11264b; font-size: 12px; }
+				.bodeguero-topbar-actions { display: flex; align-items: center; gap: 16px; }
+				.bodeguero-logout { padding: 8px 12px; border: 1px solid #d7e0eb; border-radius: 5px; color: #173459; background: white; text-decoration: none; font-size: 11px; font-weight: 700; }
+				.bodeguero-logout:hover { color: white; border-color: #145ed6; background: #145ed6; }
 				.bodeguero-main { min-height: calc(100vh - 65px); padding: 23px; }
-				@media (max-width: 900px) { .bodeguero-sidebar { width: 78px; } .bodeguero-logo > span:last-child, .bodeguero-user > span:last-child, .bodeguero-menu a > span:last-child, .bodeguero-menu-disabled > span:last-child, .bodeguero-footer, .bodeguero-topbar span { display: none; } .bodeguero-logo, .bodeguero-user { justify-content: center; padding-left: 0; padding-right: 0; } .bodeguero-menu { padding-left: 8px; padding-right: 8px; } .bodeguero-menu a, .bodeguero-menu-disabled { justify-content: center; padding: 0; } .bodeguero-content { width: calc(100% - 78px); margin-left: 78px; } }
+				@media (max-width: 900px) { .bodeguero-sidebar { width: 78px; } .bodeguero-logo > span:last-child, .bodeguero-user > span:last-child, .bodeguero-menu a > span:last-child, .bodeguero-menu-disabled > span:last-child, .bodeguero-footer, .bodeguero-topbar-actions > span { display: none; } .bodeguero-logo, .bodeguero-user { justify-content: center; padding-left: 0; padding-right: 0; } .bodeguero-menu { padding-left: 8px; padding-right: 8px; } .bodeguero-menu a, .bodeguero-menu-disabled { justify-content: center; padding: 0; } .bodeguero-content { width: calc(100% - 78px); margin-left: 78px; } .bodeguero-topbar { padding: 0 14px; } .bodeguero-main { padding: 14px; } }
 			`}</style>
 		</div>
 	);

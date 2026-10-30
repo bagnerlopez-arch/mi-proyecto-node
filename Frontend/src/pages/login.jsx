@@ -6,21 +6,6 @@ function Login() {
 
     const navigate = useNavigate();
 
-    const credencialesAdministrador = {
-        usuario: 'admin',
-        password: 'admin123'
-    };
-
-    const credencialesBodeguero = {
-        usuario: 'bodeguero1',
-        password: 'bodeguero123'
-    };
-
-    const credencialesVendedor = {
-        usuario: 'vendedor1',
-        password: 'vendedor123'
-    };
-
     const [formulario, setFormulario] = useState({
         usuario: '',
         password: '',
@@ -85,79 +70,44 @@ function Login() {
 
             setCargando(true);
 
-            const esAdministrador =
-                formulario.usuario === credencialesAdministrador.usuario
-                && formulario.password === credencialesAdministrador.password;
+            const respuesta = await fetch('/api/cliente/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    usuario: formulario.usuario,
+                    password: formulario.password
+                })
+            });
+            const datos = await respuesta.json();
 
-            const esBodeguero =
-                formulario.usuario === credencialesBodeguero.usuario
-                && formulario.password === credencialesBodeguero.password;
-
-            const esVendedor =
-                formulario.usuario === credencialesVendedor.usuario
-                && formulario.password === credencialesVendedor.password;
-
-            if (!esAdministrador && !esBodeguero && !esVendedor) {
+            if (!respuesta.ok) {
                 throw new Error(
-                    'Usuario o contraseña incorrectos.'
+                    datos.error || 'No fue posible iniciar sesión.'
                 );
             }
 
-            const datos = {
-                usuario: {
-                    usuario: esVendedor
-                        ? credencialesVendedor.usuario
-                        : esBodeguero
-                            ? credencialesBodeguero.usuario
-                            : credencialesAdministrador.usuario,
-                    rol: esVendedor
-                        ? 'VENDEDOR'
-                        : esBodeguero
-                            ? 'BODEGUERO'
-                            : 'ADMINISTRADOR'
-                }
-            };
+            const rol = datos.usuario.rol.toUpperCase();
+            const esVendedor = rol === 'VENDEDOR';
+            const esBodeguero = rol === 'BODEGUERO';
 
-
-            // =================================================
-            // GUARDAR TOKEN
-            // =================================================
-
-            if (datos.token) {
-
-                const almacenamiento =
-                    formulario.recordar
-                        ? localStorage
-                        : sessionStorage;
-
-
-                almacenamiento.setItem(
-                    'token',
-                    datos.token
-                );
+            if (formulario.recordar) {
+                sessionStorage.removeItem('token');
+                sessionStorage.removeItem('usuario');
+            } else {
+                localStorage.removeItem('token');
+                localStorage.removeItem('usuario');
             }
 
+            const almacenamiento = formulario.recordar
+                ? localStorage
+                : sessionStorage;
 
-            // =================================================
-            // GUARDAR USUARIO
-            // =================================================
-
-            if (datos.usuario) {
-
-                const almacenamiento =
-                    formulario.recordar
-                        ? localStorage
-                        : sessionStorage;
-
-
-                almacenamiento.setItem(
-                    'usuario',
-                    JSON.stringify(
-                        datos.usuario
-                    )
-                );
-            }
-
+            almacenamiento.setItem(
+                'usuario',
+                JSON.stringify(datos.usuario)
+            );
 
             navigate(
                 esVendedor
@@ -167,30 +117,16 @@ function Login() {
                         : '/public'
             );
 
-
         } catch (error) {
 
             setMensaje(
                 error.message
             );
 
-
         } finally {
 
             setCargando(false);
         }
-    }
-
-
-    // =====================================================
-    // RECUPERAR CONTRASEÑA
-    // =====================================================
-
-    function recuperarPassword() {
-
-        setMensaje(
-            'La recuperación de contraseña se configurará posteriormente.'
-        );
     }
 
 
@@ -1580,18 +1516,6 @@ function Login() {
                                     </label>
 
 
-                                    <button
-                                        type="button"
-                                        className="forgot-link"
-                                        onClick={
-                                            recuperarPassword
-                                        }
-                                    >
-
-                                        ¿Olvidaste tu contraseña?
-
-                                    </button>
-
                                 </div>
 
 
@@ -1636,29 +1560,6 @@ function Login() {
                                     }
 
                                 </button>
-{/* ADMIN */}
-
-                                <div className="admin-help">
-
-                                    ¿No tienes cuenta?
-
-                                    <button
-                                        type="button"
-                                        onClick={
-                                            () =>
-                                                setMensaje(
-                                                    'Solicita una cuenta al administrador del sistema.'
-                                                )
-                                        }
-                                    >
-
-                                        Contacta al administrador
-
-                                    </button>
-
-                                </div>
-
-
                             </form>
 
                         </div>
@@ -1682,4 +1583,3 @@ function Login() {
 
 
 export default Login;
-

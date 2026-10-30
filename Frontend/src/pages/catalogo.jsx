@@ -4570,6 +4570,7 @@ function Catalogo() {
                                                     </div>
                                                     <input name="referencia" value={datosPago.referencia} onChange={cambiarDatosPago} placeholder="Número de referencia *" required />
                                                     <input name="monto" type="number" min="0" step="0.01" value={datosPago.monto} onChange={cambiarDatosPago} placeholder="Monto transferido *" required />
+                                                    <small className="cart-message">Puedes registrar una transferencia por cualquier monto; el pago quedará pendiente de revisión.</small>
                                                     <input name="fecha" type="date" value={datosPago.fecha} onChange={cambiarDatosPago} required />
                                                     <input name="comprobante" type="file" accept="image/*,.pdf" onChange={seleccionarComprobante} required />
                                                     <p className="cart-message">Su transferencia será revisada por Comercial San Cristóbal. El envío del comprobante no significa que el pago haya sido confirmado.<br />Horario de validación: 08:00 AM - 06:00 PM. Tiempo estimado: hasta 60 minutos hábiles.</p>

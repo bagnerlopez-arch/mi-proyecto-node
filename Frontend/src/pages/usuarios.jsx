@@ -313,10 +313,10 @@ function Usuarios() {
         ).length;
 
 
-    const totalClientes =
+    const totalVendedores =
         usuarios.filter(
             usuario =>
-                usuario.rol === 'Cliente'
+                usuario.rol === 'Vendedor'
         ).length;
 
 
@@ -1433,6 +1433,14 @@ function Usuarios() {
 
             background:
                 #eee6ff;
+        }
+
+        .rol-vendedor {
+            color:
+                #16803c;
+
+            background:
+                #e1f6e8;
         }
 
 
@@ -2576,11 +2584,11 @@ function Usuarios() {
                                 <div className="resumen-data">
 
                                     <small>
-                                        Clientes
+                                        Vendedores
                                     </small>
 
                                     <h2>
-                                        {totalClientes}
+                                        {totalVendedores}
                                     </h2>
 
                                     <div className="resumen-growth">
@@ -2657,8 +2665,8 @@ function Usuarios() {
                                         Bodeguero
                                     </option>
 
-                                    <option value="Cliente">
-                                        Cliente
+                                    <option value="Vendedor">
+                                        Vendedor
                                     </option>
 
                                 </select>
@@ -2831,7 +2839,11 @@ function Usuarios() {
                                                                             ?
                                                                             'rol rol-bodeguero'
                                                                             :
-                                                                            'rol rol-cliente'
+                                                                            usuario.rol === 'Vendedor'
+                                                                                ?
+                                                                                'rol rol-vendedor'
+                                                                                :
+                                                                                'rol rol-cliente'
                                                                 }
                                                             >
 
@@ -3219,7 +3231,7 @@ function Usuarios() {
                                     >
                                         <option value="Administrador">Administrador</option>
                                         <option value="Bodeguero">Bodeguero</option>
-                                        <option value="Cliente">Cliente</option>
+                                        <option value="Vendedor">Vendedor</option>
                                     </select>
                                 </div>
 
