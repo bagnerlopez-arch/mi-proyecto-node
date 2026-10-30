@@ -215,7 +215,7 @@ export async function editarUsuario(req, res) {
         estado
     } = req.body;
 
-    if (!usuario || !nombre || !correo || !rol || !estado) {
+    if (!usuario || !nombre || !correo || !rol || (estado === undefined || estado === null)) {
         return res.status(400).json({
             error: 'Completa todos los campos obligatorios.'
         });
@@ -226,7 +226,12 @@ export async function editarUsuario(req, res) {
             error: 'El rol debe ser Administrador, Bodeguero o Vendedor.'
         });
     }
-
+// Convertir el estado recibido a formato valido para el enum de PostgreSQL
+const estadoEnum = (
+    estado === true || 
+    String(estado).toUpperCase() === 'ACTIVO' || 
+    String(estado) === '1'
+) ? 'ACTIVO' : 'INACTIVO';
     try {
 
         const resultado = await pool.query(`
@@ -258,53 +263,27 @@ export async function editarUsuario(req, res) {
                 CASE WHEN LOWER($5) = 'administrador' THEN 'azul'
                     WHEN LOWER($5) = 'bodeguero' THEN 'morado'
                     ELSE 'verde' END AS color
-        `, [usuario.trim(), nombre.trim(), correo.trim(), password || '', rol, estado, id]);
+        `, [usuario.trim(), nombre.trim(), correo.trim(), password || '', rol, estadoEnum, id]);
 
         if (resultado.rowCount === 0) {
             return res.status(404).json({
                 error: 'El usuario no existe.'
             });
-
-                        const inventario = await pool.query(`
-                            INSERT INTO inventario_ubicacion (
-                                producto_id,
-                                ubicacion_id,
-                                stock_actual,
-                                stock_reservado
-                            )
-                            SELECT
-                                $1,
-                                ubicacion_id,
-                                0,
-                                0
-                            FROM ubicacion
-                            WHERE tipo = $2
-                              AND activo = true
-                            LIMIT 1
-                            RETURNING producto_id
-                        `, [resultado.rows[0].producto_id, String(ubicacion).toUpperCase()]);
-
-                        if (inventario.rowCount === 0) {
-                            return res.status(400).json({
-                                error: 'No existe una ubicación activa de tipo Bodega o Tienda.'
-                            });
-                        }
         }
 
-        res.json(resultado.rows[0]);
+        return res.json(resultado.rows[0]);
 
     } catch (error) {
 
         console.error('Error al editar usuario:', error);
 
-        res.status(error.code === '23505' ? 409 : 500).json({
+        return res.status(error.code === '23505' ? 409 : 500).json({
             error: error.code === '23505'
                 ? 'El usuario o correo ya está registrado.'
                 : 'No fue posible editar el usuario.'
         });
 
     }
-
 }
 
 
